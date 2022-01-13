@@ -20,14 +20,14 @@ def json_append(data , file_name):
 def json_read(data , file_name):
   with open(file_name+".json",'r') as loadfile:
     data = json.load(loadfile)
-  print(json.dumps(data,ensure_ascii=False,encoding='utf-8'))
+  print json.dumps(data,ensure_ascii=False,encoding='utf-8')
 
 #读操作：单行，有分隔符
 def json_load(data , file_name):
   loadfile=open(file_name+".json","r")
   for line in loadfile:
     data=json.loads(line)
-    print(json.dumps(data,ensure_ascii=False,encoding='utf-8'))
+    print json.dumps(data,ensure_ascii=False,encoding='utf-8')
   loadfile.close()
 
 #读操作：多行，有分隔符

@@ -13,7 +13,7 @@ def click_callback(msg):
     goal={"position": {"x":msg.point.x,"y":msg.point.y,"z":msg.point.z}, "quaternion": {"x":0.0,"y":0.0,"z":0.0,"w":1.0}} 
     file_name="goals";
     json_file.json_append(goal , file_name)
-    print('save a path goal point')
+    print 'save a path goal point'
     
 
 rospy.init_node('path_point_save')

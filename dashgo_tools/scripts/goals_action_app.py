@@ -22,7 +22,7 @@ def status_callback(msg):
 
     if(msg.status.status == 3):
         try_again = 1
-        print 'Goal reached'
+        print('Goal reached')
         if index == count:
             index = 0
 
@@ -47,11 +47,11 @@ def status_callback(msg):
     else:
         
         if try_again == 1:
-            print 'Goal cannot reached has some error :',msg.status.status," try again!!!!"
+            print('Goal cannot reached has some error :',msg.status.status," try again!!!!")
             index = index-1;
             try_again = 0
         else:
-            print 'Goal cannot reached has some error :',msg.status.status," again , now go to next goal!!!!"
+            print('Goal cannot reached has some error :',msg.status.status," again , now go to next goal!!!!")
             if index == len(markerArray.markers):
                 index=0
 
@@ -100,13 +100,13 @@ for goal in goals:
     marker.color.r = 1.0
     marker.color.g = 0.0
     marker.color.b = 0.0
-    marker.pose.position.x = goal[u"position"][u"x"]
-    marker.pose.position.y = goal[u"position"][u"y"]
-    marker.pose.position.z = goal[u"position"][u"z"]
-    marker.pose.orientation.x = goal[u"quaternion"][u"x"]
-    marker.pose.orientation.y = goal[u"quaternion"][u"y"]
-    marker.pose.orientation.z = goal[u"quaternion"][u"z"]
-    marker.pose.orientation.w = goal[u"quaternion"][u"w"]
+    marker.pose.position.x = goal["position"]["x"]
+    marker.pose.position.y = goal["position"]["y"]
+    marker.pose.position.z = goal["position"]["z"]
+    marker.pose.orientation.x = goal["quaternion"]["x"]
+    marker.pose.orientation.y = goal["quaternion"]["y"]
+    marker.pose.orientation.z = goal["quaternion"]["z"]
+    marker.pose.orientation.w = goal["quaternion"]["w"]
     count=count+1
     marker.text = str(count)
     marker.id = len(markerArray.markers);

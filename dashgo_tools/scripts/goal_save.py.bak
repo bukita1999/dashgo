@@ -13,7 +13,7 @@ def goal_callback(msg):
     goal={"position": {"x":move_pose.position.x,"y":move_pose.position.y,"z":move_pose.position.z}, "quaternion": {"x":move_pose.orientation.x,"y":move_pose.orientation.y,"z":move_pose.orientation.z,"w":move_pose.orientation.w}} 
     file_name="goal";
     json_file.json_append(goal , file_name)
-    print('save a path goal point')
+    print 'save a path goal point'
     
 
 rospy.init_node('path_point_save')

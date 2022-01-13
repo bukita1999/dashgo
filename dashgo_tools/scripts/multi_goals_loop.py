@@ -37,7 +37,7 @@ def status_callback(msg):
 
     if(msg.status.status == 3):
         try_again = 1
-        print 'Goal reached'
+        print('Goal reached')
         if index == count:
             index = 0
 
@@ -52,11 +52,11 @@ def status_callback(msg):
     else:
         
         if try_again == 1:
-            print 'Goal cannot reached has some error :',msg.status.status," try again!!!!"
+            print('Goal cannot reached has some error :',msg.status.status," try again!!!!")
             index = index-1;
             try_again = 0
         else:
-            print 'Goal cannot reached has some error :',msg.status.status," again , now go to next goal!!!!"
+            print('Goal cannot reached has some error :',msg.status.status," again , now go to next goal!!!!")
             if index == len(markerArray.markers):
                 index=0
 
@@ -116,7 +116,7 @@ def click_callback(msg):
     json_file.json_append(goal , file_name)
 #    dic=json_file.json_read_lines(dic , file_name)
 
-    print 'add a path goal point'
+    print('add a path goal point')
 
 
 markerArray = MarkerArray()

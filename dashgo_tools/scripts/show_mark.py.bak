@@ -17,7 +17,7 @@ def status_callback(msg):
     if(msg.status.status == 3):
         try_again = 1
         if add_more_point == 0:
-            print('Goal reached')
+            print 'Goal reached'
 
         if index < count:
 
@@ -50,7 +50,7 @@ def status_callback(msg):
     #                             #    and was successfully cancelled (Terminal State)
     # uint8 LOST            = 9   # An action client can determine that a goal is LOST. This should not be
     #                             #    sent over the wire by an action server
-        print('Goal cannot reached has some error :',msg.status.status," try again!!!!")
+        print 'Goal cannot reached has some error :',msg.status.status," try again!!!!"
         if try_again == 1:
             pose = PoseStamped()
             pose.header.frame_id = "/map"
@@ -128,7 +128,7 @@ def click_callback(msg):
         goal_status_pub.publish(move)
 
     count += 1
-    print('add a path goal point')
+    print 'add a path goal point'
 
 
 markerArray = MarkerArray()

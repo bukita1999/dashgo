@@ -7,32 +7,16 @@ import rospy
 import math
 from geometry_msgs.msg import PointStamped,PoseStamped
 import actionlib
+from actionlib_msgs.msg import *
 from move_base_msgs.msg import *
+import json_file
 
+#多点目标点点击（默认方向）
+#导航目标点状态处理
 def status_callback(msg):
-
     global goal_pub, index,markerArray
-    global add_more_point,try_again
+    global try_again
 
-    if(msg.status.status == 3):
-        try_again = 1
-        if add_more_point == 0:
-            print('Goal reached')
-
-        if index < count:
-
-            pose = PoseStamped()
-            pose.header.frame_id = "/map"
-            pose.header.stamp = rospy.Time.now()
-            pose.pose.position.x = markerArray.markers[index].pose.position.x
-            pose.pose.position.y = markerArray.markers[index].pose.position.y
-            pose.pose.orientation.w = 1
-            goal_pub.publish(pose)
-
-            index += 1
-        elif index == count:
-            add_more_point = 1
-    else:
     # uint8 PENDING         = 0   # The goal has yet to be processed by the action server
     # uint8 ACTIVE          = 1   # The goal is currently being processed by the action server
     # uint8 PREEMPTED       = 2   # The goal received a cancel request after it started executing
@@ -50,32 +34,45 @@ def status_callback(msg):
     #                             #    and was successfully cancelled (Terminal State)
     # uint8 LOST            = 9   # An action client can determine that a goal is LOST. This should not be
     #                             #    sent over the wire by an action server
-        print('Goal cannot reached has some error :',msg.status.status," try again!!!!")
+
+    if(msg.status.status == 3):
+        try_again = 1
+        print 'Goal reached'
+        if index == count:
+            index = 0
+
+        pose = PoseStamped()
+        pose.header.frame_id = "/map"
+        pose.header.stamp = rospy.Time.now()
+        pose.pose.position.x = markerArray.markers[index].pose.position.x
+        pose.pose.position.y = markerArray.markers[index].pose.position.y
+        pose.pose.orientation.w = 1
+        goal_pub.publish(pose)
+        index += 1
+    else:
+        
         if try_again == 1:
-            pose = PoseStamped()
-            pose.header.frame_id = "/map"
-            pose.header.stamp = rospy.Time.now()
-            pose.pose.position.x = markerArray.markers[index-1].pose.position.x
-            pose.pose.position.y = markerArray.markers[index-1].pose.position.y
-            pose.pose.orientation.w = 1
-            goal_pub.publish(pose)
+            print 'Goal cannot reached has some error :',msg.status.status," try again!!!!"
+            index = index-1;
             try_again = 0
         else:
-            if index < len(markerArray.markers):
-                pose = PoseStamped()
-                pose.header.frame_id = "/map"
-                pose.header.stamp = rospy.Time.now()
-                pose.pose.position.x = markerArray.markers[index].pose.position.x
-                pose.pose.position.y = markerArray.markers[index].pose.position.y
-                pose.pose.orientation.w = 1
-                goal_pub.publish(pose)
-                index += 1
+            print 'Goal cannot reached has some error :',msg.status.status," again , now go to next goal!!!!"
+            if index == len(markerArray.markers):
+                index=0
 
+        pose = PoseStamped()
+        pose.header.frame_id = "/map"
+        pose.header.stamp = rospy.Time.now()
+        pose.pose.position.x = markerArray.markers[index].pose.position.x
+        pose.pose.position.y = markerArray.markers[index].pose.position.y
+        pose.pose.orientation.w = 1
+        goal_pub.publish(pose)
+        index += 1
 
+#rviz点击目标点处理
 def click_callback(msg):
-    global markerArray,count,MARKERS_MAX
+    global markerArray,count
     global goal_pub,index
-    global add_more_point
 
     marker = Marker()
     marker.header.frame_id = "/map"
@@ -93,18 +90,8 @@ def click_callback(msg):
     marker.pose.position.y = msg.point.y
     marker.pose.position.z = msg.point.z
     marker.text = str(count)
-    # We add the new marker to the MarkerArray, removing the oldest
-    # marker from it when necessary
-    # if(count > MARKERS_MAX):
-    #    markerArray.markers.pop(0)
-
+    marker.id = len(markerArray.markers);
     markerArray.markers.append(marker)
-
-    # Renumber the marker IDs
-    id = 0
-    for m in markerArray.markers:
-       m.id = id
-       id += 1
 
     # Publish the MarkerArray
     mark_pub.publish(markerArray)
@@ -120,55 +107,33 @@ def click_callback(msg):
         goal_pub.publish(pose)
         index += 1
 
-    if add_more_point and count > 0:
-        add_more_point = 0
-        move =MoveBaseActionResult()
-        move.status.status = 3
-        move.header.stamp = rospy.Time.now()
-        goal_status_pub.publish(move)
-
     count += 1
-    print('add a path goal point')
+
+    #保存目标点
+    goal={"position": {"x":msg.point.x,"y":msg.point.y,"z":msg.point.z}, "quaternion": {"x":0.0,"y":0.0,"z":0.0,"w":1.0}} 
+    file_name="multi_goals";
+#    json_file.json_write(goal , file_name)
+    json_file.json_append(goal , file_name)
+#    dic=json_file.json_read_lines(dic , file_name)
+
+    print 'add a path goal point'
 
 
 markerArray = MarkerArray()
-
 count = 0       #total goal num
 index = 0       #current goal point index
-add_more_point = 0 # after all goal arrive, if add some more goal
 try_again = 1  # try the fail goal once again
 
-rospy.init_node('path_point_demo')
+rospy.init_node('path_point_loop')
 
 mark_pub = rospy.Publisher('/path_point', MarkerArray,queue_size=100)
 click_sub = rospy.Subscriber('/clicked_point',PointStamped,click_callback)
+#goal_pub = rospy.Publisher('/move_base/goal',MoveBaseActionGoal,queue_size=1)
 goal_pub = rospy.Publisher('/move_base_simple/goal',PoseStamped,queue_size=1)
+#action_goal_pub = rospy.Publisher('/move_base/goal',MoveBaseActionGoal,queue_size=1)
+#cancel_goal_pub = rospy.Publisher('move_base/cancel',GoalID,queue_size=1)
 goal_status_sub = rospy.Subscriber('/move_base/result',MoveBaseActionResult,status_callback)
-#after all goal arrive, if add some more goal
-#we deleberate pub a topic to trig the goal sent
-goal_status_pub = rospy.Publisher('/move_base/result',MoveBaseActionResult,queue_size=1)
+#goal_status_pub = rospy.Publisher('/move_base/result',MoveBaseActionResult,queue_size=1)
+file_name="multi_goals";
+json_file.json_clear(file_name)
 rospy.spin()
-
-# sac = actionlib.SimpleActionClient('move_base', MoveBaseAction )
-# goal = MoveBaseGoal()
-# goal.target_pose.pose.position.x = 0.0
-# goal.target_pose.pose.position.y = 0.0
-# goal.target_pose.pose.orientation.w = 1.0
-# goal.target_pose.header.frame_id = 'map'
-# goal.target_pose.header.stamp = rospy.Time.now()
-#
-# #start listner
-# sac.wait_for_server()
-#
-# #send goal
-# sac.send_goal(goal)
-# #finish
-# sac.wait_for_result()
-#
-# rate = rospy.Rate(10)
-#
-# while not rospy.is_shutdown():
-#     print sac.get_result()
-#     print 'ada'
-#     rate.sleep()
-

@@ -1,9 +1,28 @@
 #!/usr/bin/env python
 
+"""
+    A ROS Node for the Arduino microcontroller
+    
+    Created for the Pi Robot Project: http://www.pirobot.org
+    Copyright (c) 2012 Patrick Goebel.  All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details at:
+    
+    http://www.gnu.org/licenses/gpl.html
+"""
+
 import rospy
 from geometry_msgs.msg import Twist
 import os, time
-import _thread
+import thread
 
 from math import pi as PI, degrees, radians, sin, cos
 import os
@@ -18,13 +37,6 @@ from geometry_msgs.msg import Quaternion, Twist, Pose
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int16
 from tf.broadcaster import TransformBroadcaster
-
-#from dashgo_driver.srv import *
-#from SrvInt32.srv import *
-from std_srvs.srv import Trigger, TriggerResponse
-
-from sensor_msgs.msg import Range
-from std_msgs.msg import Int16
  
 ODOM_POSE_COVARIANCE = [1e-3, 0, 0, 0, 0, 0, 
                         0, 1e-3, 0, 0, 0, 0,
@@ -75,7 +87,7 @@ class Arduino:
         self.interCharTimeout = timeout / 30.
     
         # Keep things thread safe
-        self.mutex = _thread.allocate_lock()
+        self.mutex = thread.allocate_lock()
             
         # An array to cache analog sensor readings
         self.analog_sensor_cache = [None] * self.N_ANALOG_PORTS
@@ -85,7 +97,7 @@ class Arduino:
     
     def connect(self):
         try:
-            print("Connecting to Arduino on port", self.port, "...")
+            print "Connecting to Arduino on port", self.port, "..."
             self.port = Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout, writeTimeout=self.writeTimeout)
             # The next line is necessary to give the firmware time to wake up.
             time.sleep(1)
@@ -95,15 +107,15 @@ class Arduino:
                 test = self.get_baud()   
                 if test != self.baudrate:
                     raise SerialException
-            print("Connected at", self.baudrate)
-            print("Arduino is ready.")
+            print "Connected at", self.baudrate
+            print "Arduino is ready."
 
         except SerialException:
-            print("Serial Exception:")
-            print(sys.exc_info())
-            print("Traceback follows:")
+            print "Serial Exception:"
+            print sys.exc_info()
+            print "Traceback follows:"
             traceback.print_exc(file=sys.stdout)
-            print("Cannot connect to Arduino!")
+            print "Cannot connect to Arduino!"
             os._exit(1)
 
     def open(self): 
@@ -165,7 +177,7 @@ class Arduino:
         '''
         try:
             values = self.recv(self.timeout * self.N_ANALOG_PORTS).split()
-            return list(map(int, values))
+            return map(int, values)
         except:
             return []
 
@@ -191,11 +203,11 @@ class Arduino:
                     self.port.write(cmd + '\r')
                     value = self.recv(self.timeout)
                 except:
-                    print("Exception executing command: " + cmd)
+                    print "Exception executing command: " + cmd
                 attempts += 1
         except:
             self.mutex.release()
-            print("Exception executing command: " + cmd)
+            print "Exception executing command: " + cmd
             value = None
         
         self.mutex.release()
@@ -223,16 +235,16 @@ class Arduino:
                     self.port.write(cmd + '\r')
                     values = self.recv_array()
                 except:
-                    print(("Exception executing command: " + cmd))
+                    print("Exception executing command: " + cmd)
                 attempts += 1
         except:
             self.mutex.release()
-            print("Exception executing command: " + cmd)
+            print "Exception executing command: " + cmd
             raise SerialException
             return []
         
         try:
-            values = list(map(int, values))
+            values = map(int, values)
         except:
             values = []
 
@@ -261,12 +273,12 @@ class Arduino:
                     self.port.write(cmd + '\r')
                     ack = self.recv(self.timeout)
                 except:
-                    print("Exception executing command: " + cmd)
+                    print "Exception executing command: " + cmd
             attempts += 1
         except:
             self.mutex.release()
-            print("execute_ack exception when executing", cmd)
-            print(sys.exc_info())
+            print "execute_ack exception when executing", cmd
+            print sys.exc_info()
             return 0
         
         self.mutex.release()
@@ -275,7 +287,7 @@ class Arduino:
     def update_pid(self, Kp, Kd, Ki, Ko):
         ''' Set the PID parameters on the Arduino
         '''
-        print("Updating PID parameters")
+        print "Updating PID parameters"
         cmd = 'u ' + str(Kp) + ':' + str(Kd) + ':' + str(Ki) + ':' + str(Ko)
         self.execute_ack(cmd)                          
 
@@ -287,7 +299,7 @@ class Arduino:
     def get_encoder_counts(self):
         values = self.execute_array('e')
         if len(values) != 2:
-            print("Encoder count was not 2")
+            print "Encoder count was not 2"
             raise SerialException
             return None
         else:
@@ -319,25 +331,17 @@ class Arduino:
         '''
         self.drive(0, 0)
 
-    def ping(self):
-        values = self.execute_array('p')
-        if len(values) != 5:
-            print("ping count was not 5")
-            raise SerialException
-            return None
-        else:
-            return values
-
-    def get_voltage(self):
-        return self.execute('v');
-
-    def get_emergency_button(self):
-        return self.execute('j');
+    def ping(self, pin):
+        ''' The srf05/Ping command queries an SRF05/Ping sonar sensor
+            connected to the General Purpose I/O line pinId for a distance,
+            and returns the range in cm.  Sonar distance resolution is integer based.
+        '''
+        return self.execute('p %d' %pin);
 
     def get_pidin(self):
         values = self.execute_array('i')
         if len(values) != 2:
-            print("get_pidin count was not 2")
+            print "get_pidin count was not 2"
             raise SerialException
             return None
         else:
@@ -346,7 +350,7 @@ class Arduino:
     def get_pidout(self):
         values = self.execute_array('f')
         if len(values) != 2:
-            print("get_pidout count was not 2")
+            print "get_pidout count was not 2"
             raise SerialException
             return None
         else:
@@ -361,8 +365,6 @@ class BaseController:
         self.rate = float(rospy.get_param("~base_controller_rate", 10))
         self.timeout = rospy.get_param("~base_controller_timeout", 1.0)
         self.stopped = False
-        self.useImu = rospy.get_param("~useImu", False)
-        self.useSonar = rospy.get_param("~useSonar", False)
                  
         pid_params = dict()
         pid_params['wheel_diameter'] = rospy.get_param("~wheel_diameter", "") 
@@ -414,8 +416,7 @@ class BaseController:
         self.last_cmd_vel = now
 
         # Subscriptions
-        #rospy.Subscriber("cmd_vel", Twist, self.cmdVelCallback)
-        rospy.Subscriber("smoother_cmd_vel", Twist, self.cmdVelCallback)
+        rospy.Subscriber("cmd_vel", Twist, self.cmdVelCallback)
         
         # Clear any old odometry info
         self.arduino.reset_encoders()
@@ -431,58 +432,13 @@ class BaseController:
         self.rEncoderPub = rospy.Publisher('Rencoder', Int16, queue_size=5)
         self.lVelPub = rospy.Publisher('Lvel', Int16, queue_size=5)
         self.rVelPub = rospy.Publisher('Rvel', Int16, queue_size=5)
-
-        ## sonar 
-        self.sonar0_pub = rospy.Publisher('sonar0', Range, queue_size=5)
-        self.sonar1_pub = rospy.Publisher('sonar1', Range, queue_size=5)
-        self.sonar2_pub = rospy.Publisher('sonar2', Range, queue_size=5)
-        self.sonar3_pub = rospy.Publisher('sonar3', Range, queue_size=5)
-        self.sonar4_pub = rospy.Publisher('sonar4', Range, queue_size=5)
         
-        self.safe_ranger_0 = 0.3
-        self.safe_ranger_1 = 0.6
-        self.safe_ranger_2 = 1.0
-        self.front_ranger_l = 10.0
-        self.front_ranger_r = 10.0
-    
-        self.voltage_bool = False
-        self.voltage_val = 0
-        self.voltage_status_service = rospy.Service('voltage_status', Trigger, self.handle_voltage_status) 
-   
-        self.emergencybt_bool = False
-        self.emergencybt_val = 0
-        self.emergencybt_status_service = rospy.Service('emergencybt_status', Trigger, self.handle_emergencybt_status) 
-
-        rospy.Subscriber("is_passed", Int16, self.isPassedCallback)
-        self.isPassed = True
-        
-    def handle_voltage_status(self, req):
-        try:
-             self.voltage_bool = True
-             self.voltage_val  = self.arduino.get_voltage()
-        except:
-             self.voltage_bool = False
-             self.voltage_val  = 0
-             rospy.logerr("get_voltage_status exception ")
-        return TriggerResponse(self.voltage_bool, str(self.voltage_val*10))
-
-    def handle_emergencybt_status(self, req):
-        try:
-             self.emergencybt_bool = True
-             self.emergencybt_val = self.arduino.get_emergency_button()
-        except:
-             self.emergencybt_bool = False
-             self.emergencybt_val  = 0
-             rospy.logerr("get_emergencybt_status exception ")
-        return TriggerResponse(self.emergencybt_bool, str(self.emergencybt_val))
- 
-
     def setup_pid(self, pid_params):
         # Check to see if any PID parameters are missing
         missing_params = False
         for param in pid_params:
             if pid_params[param] == "":
-                print(("*** PID Parameter " + param + " is missing. ***"))
+                print("*** PID Parameter " + param + " is missing. ***")
                 missing_params = True
         
         if missing_params:
@@ -503,66 +459,7 @@ class BaseController:
     def poll(self):
         now = rospy.Time.now()
         if now > self.t_next:
-            if (self.useSonar == True) :
-                try:
-                    r0, r1, r2, r3, r4= self.arduino.ping()
-                    rospy.loginfo("r0: " + str(r0)+"r1: " + str(r1) + "r2: " + str(r2) + "r3: " + str(r3)+ "r4: " + str(r4))
-                    #rospy.loginfo("r0: " + str(r0) + "r3: " + str(r3))
-                    sonar0_range = Range()
-                    sonar0_range.header.stamp = now
-                    sonar0_range.header.frame_id = "/sonar0"
-                    sonar0_range.radiation_type = Range.ULTRASOUND
-                    sonar0_range.min_range = 0.05
-                    sonar0_range.max_range = 4.0
-                    sonar0_range.range = r0/100.0
-                    self.sonar0_pub.publish(sonar0_range)
-                    sonar1_range = Range()
-                    sonar1_range.header.stamp = now
-                    sonar1_range.header.frame_id = "/sonar1"
-                    sonar1_range.radiation_type = Range.ULTRASOUND
-                    sonar1_range.min_range = 0.05
-                    sonar1_range.max_range = 4.0
-                    sonar1_range.range = r1/100.0
-                    self.sonar1_pub.publish(sonar1_range)
-                    sonar2_range = Range()
-                    sonar2_range.header.stamp = now
-                    sonar2_range.header.frame_id = "/sonar2"
-                    sonar2_range.radiation_type = Range.ULTRASOUND
-                    sonar2_range.min_range = 0.05
-                    sonar2_range.max_range = 4.0
-                    sonar2_range.range = r2/100.0
-                    self.sonar2_pub.publish(sonar2_range)
-                    sonar3_range = Range()
-                    sonar3_range.header.stamp = now
-                    sonar3_range.header.frame_id = "/sonar3"
-                    sonar3_range.radiation_type = Range.ULTRASOUND
-                    sonar3_range.min_range = 0.05
-                    sonar3_range.max_range = 4.0
-                    sonar3_range.range = r3/100.0
-                    self.sonar3_pub.publish(sonar3_range)
-                    sonar4_range = Range()
-                    sonar4_range.header.stamp = now
-                    sonar4_range.header.frame_id = "/sonar4"
-                    sonar4_range.radiation_type = Range.ULTRASOUND
-                    sonar4_range.min_range = 0.05
-                    sonar4_range.max_range = 4.0
-                    sonar4_range.range = r4/100.0
-                    self.sonar4_pub.publish(sonar4_range)
-                    if(sonar0_range.range>=0.05) and (sonar0_range.range<=4.0):
-                        self.front_ranger_l = sonar0_range.range
-                    else:
-                        self.front_ranger_l = 10.0
-                    if(sonar1_range.range>=0.05) and (sonar1_range.range<=4.0):
-                        self.front_ranger_r = sonar1_range.range
-                    else:
-                        self.front_ranger_r = 10.0
-                except:
-                    self.front_ranger_l = 10.0
-                    self.front_ranger_r = 10.0
-                    self.bad_encoder_count += 1
-                    rospy.logerr("ping exception count: " + str(self.bad_encoder_count))
-                    return
- 
+            # Read the encoders
             try:
                 left_enc, right_enc = self.arduino.get_encoder_counts()
                 #rospy.loginfo("left_enc: " + str(left_enc)+"right_enc: " + str(right_enc))
@@ -623,13 +520,12 @@ class BaseController:
             quaternion.w = cos(self.th / 2.0)
     
             # Create the odometry transform frame broadcaster.
-            if (self.useImu == False) :
-                self.odomBroadcaster.sendTransform(
-                  (self.x, self.y, 0), 
-                  (quaternion.x, quaternion.y, quaternion.z, quaternion.w),
-                  rospy.Time.now(),
-                  self.base_frame,
-                  "odom"
+            self.odomBroadcaster.sendTransform(
+                (self.x, self.y, 0), 
+                (quaternion.x, quaternion.y, quaternion.z, quaternion.w),
+                rospy.Time.now(),
+                self.base_frame,
+                "odom"
                 )
     
             odom = Odometry()
@@ -644,8 +540,6 @@ class BaseController:
             odom.twist.twist.linear.y = 0
             odom.twist.twist.angular.z = vth
 
-            odom.pose.covariance = ODOM_POSE_COVARIANCE
-            odom.twist.covariance = ODOM_TWIST_COVARIANCE
             # todo sensor_state.distance == 0
             #if self.v_des_left == 0 and self.v_des_right == 0:
             #    odom.pose.covariance = ODOM_POSE_COVARIANCE2
@@ -678,7 +572,7 @@ class BaseController:
                 if self.v_right < self.v_des_right:
                     self.v_right = self.v_des_right
             self.lVelPub.publish(self.v_left)
-            self.rVelPub.publish(self.v_right)            
+            self.rVelPub.publish(self.v_right)
 
             # Set motor speeds in encoder ticks per PID loop
             if not self.stopped:
@@ -697,18 +591,6 @@ class BaseController:
         x = req.linear.x         # m/s
         th = req.angular.z       # rad/s
 
-
-        if (self.useSonar == True) :
-            if((self.front_ranger_l<=self.safe_ranger_0)or(self.front_ranger_r<=self.safe_ranger_0)) and (x>0):
-                x=0
-            elif((self.front_ranger_l<=self.safe_ranger_1)or(self.front_ranger_r<=self.safe_ranger_1)) and (x>0.05):
-                x=0.05
-            #elif((self.front_ranger_l<=self.safe_ranger_2)or(self.front_ranger_r<=self.safe_ranger_2)) and (x>0.15):
-             #   x=0.15
-
-        if not self.isPassed and x>0 :
-            x = 0
-
         if x == 0:
             # Turn in place
             right = th * self.wheel_track  * self.gear_reduction / 2.0
@@ -723,12 +605,6 @@ class BaseController:
             
         self.v_des_left = int(left * self.ticks_per_meter / self.arduino.PID_RATE)
         self.v_des_right = int(right * self.ticks_per_meter / self.arduino.PID_RATE)
-
-    def isPassedCallback(self, msg):
-        if(msg.data>2):
-            self.isPassed = False
-        else:
-            self.isPassed = True
 
 class ArduinoROS():
     def __init__(self):
@@ -752,7 +628,6 @@ class ArduinoROS():
         
         self.use_base_controller = rospy.get_param("~use_base_controller", False)
         
-        
         # Set up the time for publishing the next SensorState message
         now = rospy.Time.now()
         self.t_delta_sensors = rospy.Duration(1.0 / self.sensorstate_rate)
@@ -773,7 +648,7 @@ class ArduinoROS():
         rospy.loginfo("Connected to Arduino on port " + self.port + " at " + str(self.baud) + " baud")
      
         # Reserve a thread lock
-        mutex = _thread.allocate_lock()
+        mutex = thread.allocate_lock()
               
         # Initialize the base controller if used
         if self.use_base_controller:

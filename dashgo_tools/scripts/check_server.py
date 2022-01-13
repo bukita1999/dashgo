@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import rospy
 from geometry_msgs.msg import Twist, Quaternion, Point
 from std_msgs.msg import String
